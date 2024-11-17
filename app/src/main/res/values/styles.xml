@@ -1,0 +1,20 @@
+<resources>
+    <!-- 게임 버튼 스타일: 테두리가 적용됨 -->
+    <style name="GameButtonStyle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">@drawable/button_border</item>
+        <item name="android:padding">1dp</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <!-- 정보 표시 TextView 스타일: 투명 배경 -->
+    <style name="InfoTextStyle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">0.6</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:gravity">center</item>
+    </style>
+</resources>
