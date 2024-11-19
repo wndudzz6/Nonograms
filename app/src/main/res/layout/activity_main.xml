@@ -1,16 +1,32 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:padding="16dp"
+    android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <!-- 전체 테이블 레이아웃 -->
+    <TextView
+        android:id="@+id/lifeTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Life: 3"
+        android:textSize="18sp"
+        android:layout_gravity="center_horizontal" />
+
+    <Button
+        android:id="@+id/modeToggleButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="BLACK SQUARE"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="16dp" />
+
     <TableLayout
         android:id="@+id/tableLayout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:stretchColumns="*"
-        android:layout_centerInParent="true">
-    </TableLayout>
+        android:layout_gravity="start" />
 
-</RelativeLayout>
+</LinearLayout>

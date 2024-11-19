@@ -14,45 +14,39 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import java.util.HashSet;
-import java.util.Set;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int TOTAL_SIZE = 8;
     private static final int BUTTON_SIZE = 150;
-    private static final int REQUIRED_BLACK_SQUARES = 15;
-    private static final int MAX_LIFE = 3;
-    private int remainingBlackSquares = REQUIRED_BLACK_SQUARES;
-    private int life = MAX_LIFE;
+    private int requiredBlackSquares;
+    private int[][] answerGrid = new int[5][5];
+    private Cell[][] cells = new Cell[5][5];
+    private int remainingBlackSquares;
+    private int life = 3;
 
-    private Button blackSquaresButton;
     private TextView lifeTextView, remainingSquaresTextView;
     private TableLayout tableLayout;
-    private boolean isCleared = false;
+    private boolean isGameOver = false;
+    private boolean isXToggle = false; // X 토글 상태 확인
 
-    private final String[][] rowHints = {
-            {" ", "1", "1"},
-            {" ", "2", "2"},
-            {" ", " ", "5"},
-            {" ", " ", "3"},
-            {" ", " ", "1"}
-    };
-
-    private final String[][] colHints = {
-            {" ", " ", "2"},
-            {" ", " ", "4"},
-            {" ", " ", "3"},
-            {" ", " ", "4"},
-            {" ", " ", "2"}
-    };
-
-    public final Set<String> correctCells = new HashSet<>();
+    private final String[][] rowHints = new String[5][3];
+    private final String[][] colHints = new String[5][3];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setCorrectCells();
+
+        initializeHints();
+
+        generateRandomAnswerGrid();
+        calculateHints();
+        requiredBlackSquares = calculateTotalBlackSquares();
+        remainingBlackSquares = requiredBlackSquares;
 
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
@@ -75,19 +69,16 @@ public class MainActivity extends AppCompatActivity {
         bottomLayout.setGravity(Gravity.START);
         bottomLayout.setPadding(10, 10, 10, 10);
 
-        blackSquaresButton = new Button(this);
-        blackSquaresButton.setText("Black Squares");
-        blackSquaresButton.setPadding(10, 0, 10, 0);
-        blackSquaresButton.setTextSize(18);
-        blackSquaresButton.setOnClickListener(v -> toggleRemainingSquaresDisplay());
+        Button modeToggleButton = new Button(this);
+        modeToggleButton.setText("BLACK SQUARES"); // 초기 텍스트 설정
+        modeToggleButton.setPadding(10, 0, 10, 0);
+        modeToggleButton.setTextSize(18);
+        modeToggleButton.setOnClickListener(v -> {
+            isXToggle = !isXToggle; // 모드 변경
+            modeToggleButton.setText(isXToggle ? "X TOGGLE" : "BLACK SQUARES"); // 텍스트 변경
+        });
 
-        remainingSquaresTextView = new TextView(this);
-        remainingSquaresTextView.setPadding(10, 0, 0, 0);
-        remainingSquaresTextView.setTextSize(18);
-        remainingSquaresTextView.setVisibility(View.GONE);
-
-        bottomLayout.addView(blackSquaresButton);
-        bottomLayout.addView(remainingSquaresTextView);
+        bottomLayout.addView(modeToggleButton);
 
         tableLayout = new TableLayout(this);
         tableLayout.setLayoutParams(new TableLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -100,7 +91,8 @@ public class MainActivity extends AppCompatActivity {
 
             for (int j = 1; j <= TOTAL_SIZE; j++) {
                 if (i >= 4 && j >= 4) {
-                    Cell cell = createCell(i, j);
+                    Cell cell = createCell(i - 4, j - 4);
+                    cells[i - 4][j - 4] = cell;
                     tableRow.addView(cell);
                 } else if (i <= 3 && j >= 4) {
                     tableRow.addView(createStyledTextView(colHints[j - 4][i - 1]));
@@ -117,52 +109,117 @@ public class MainActivity extends AppCompatActivity {
         mainLayout.addView(bottomLayout);
         setContentView(mainLayout);
     }
+
     private Cell createCell(int row, int col) {
-        // Context로 MainActivity.this 사용, row와 col는 셀 위치 지정
         Cell cell = new Cell(this, row, col);
-        // 셀의 크기 설정
         TableRow.LayoutParams params = new TableRow.LayoutParams(BUTTON_SIZE, BUTTON_SIZE);
         cell.setLayoutParams(params);
-        // MainActivity 참조를 셀에 설정하여 게임 로직에 접근할 수 있게 함
-        cell.setMainActivity(this);
+        cell.setOnClickListener(v -> {
+            if (isGameOver) return;
+
+            if (isXToggle) {
+                cell.toggleMark(); // X 표시 토글
+            } else {
+                if (answerGrid[row][col] == 1) {
+                    cell.fillBlack();
+                    remainingBlackSquares--;
+                    if (remainingBlackSquares <= 0) {
+                        endGame("Game Cleared!");
+                    }
+                } else {
+                    decreaseLife();
+                }
+            }
+        });
         return cell;
     }
 
-    private void setCorrectCells() {
-        String[] correctCoordinates = {"4,5", "4,7", "5,4", "5,5", "5,7", "5,8", "6,4", "6,5", "6,6", "6,7", "6,8", "7,5", "7,6", "7,7", "8,6"};
-        for (String coord : correctCoordinates) {
-            correctCells.add(coord);
+    private void initializeHints() {
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 3; j++) {
+                rowHints[i][j] = " ";
+                colHints[i][j] = " ";
+            }
         }
     }
 
-    public boolean isCleared() {
-        return isCleared;
-    }
-
-    public void updateRemainingBlackSquares(int delta) {
-        remainingBlackSquares += delta;
-        if (remainingBlackSquares <= 0) {
-            isCleared = true;
-            Toast.makeText(this, "Game Cleared!", Toast.LENGTH_SHORT).show();
+    private void generateRandomAnswerGrid() {
+        Random random = new Random();
+        for (int i = 0; i < 5; i++) {
+            int blockCount = random.nextInt(5) + 1;
+            int startIndex = random.nextInt(6 - blockCount);
+            for (int j = startIndex; j < startIndex + blockCount; j++) {
+                answerGrid[i][j] = 1;
+            }
         }
     }
 
-    public void updateLife(int delta) {
-        life += delta;
+    private void calculateHints() {
+        for (int i = 0; i < 5; i++) {
+            String[] rowHint = calculateHint(answerGrid[i]); // 행 힌트 계산
+            String[] colHint = calculateHint(getColumn(i));  // 열 힌트 계산
+
+            // 힌트를 뒤쪽에 공백을 추가하며 저장 (공백을 뒤로 밀어냄)
+            for (int j = 0; j < 3; j++) {
+                rowHints[i][j] = j < rowHint.length ? rowHint[j] : " "; // 숫자 먼저 저장, 나머지는 공백
+                colHints[i][j] = j < colHint.length ? colHint[j] : " ";
+            }
+        }
+    }
+
+
+    private int[] getColumn(int colIndex) {
+        int[] column = new int[5];
+        for (int i = 0; i < 5; i++) {
+            column[i] = answerGrid[i][colIndex];
+        }
+        return column;
+    }
+
+    private String[] calculateHint(int[] line) {
+        List<String> hints = new ArrayList<>();
+        int count = 0;
+        for (int cell : line) {
+            if (cell == 1) {
+                count++;
+            } else if (count > 0) {
+                hints.add(String.valueOf(count));
+                count = 0;
+            }
+        }
+        if (count > 0) {
+            hints.add(String.valueOf(count));
+        }
+        return hints.isEmpty() ? new String[]{"0"} : hints.toArray(new String[0]);
+    }
+
+    private int calculateTotalBlackSquares() {
+        int total = 0;
+        for (String[] rowHint : rowHints) {
+            for (String hint : rowHint) {
+                if (hint != null && !hint.equals(" ")) {
+                    total += Integer.parseInt(hint.trim());
+                }
+            }
+        }
+        return total;
+    }
+
+    private void decreaseLife() {
+        life--;
         lifeTextView.setText("Life: " + life);
         if (life <= 0) {
-            Toast.makeText(this, "Game Over!", Toast.LENGTH_LONG).show();
-            disableGameControls();
+            endGame("Game Over");
         }
     }
 
-    private void disableGameControls() {
-        blackSquaresButton.setEnabled(false);
-        for (int i = 0; i < tableLayout.getChildCount(); i++) {
-            TableRow row = (TableRow) tableLayout.getChildAt(i);
-            for (int j = 0; j < row.getChildCount(); j++) {
-                View cell = row.getChildAt(j);
-                cell.setEnabled(false);
+    private void endGame(String message) {
+        isGameOver = true;
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+
+        for (Cell[] row : cells) {
+            for (Cell cell : row) {
+                cell.setClickable(false);
             }
         }
     }
@@ -173,22 +230,7 @@ public class MainActivity extends AppCompatActivity {
         textView.setText(text);
         textView.setGravity(Gravity.CENTER);
         textView.setPadding(10, 10, 10, 10);
-        textView.setBackgroundColor(Color.LTGRAY);
+        textView.setBackgroundColor(Color.TRANSPARENT);
         return textView;
     }
-
-
-
-    private void toggleRemainingSquaresDisplay() {
-        if (remainingSquaresTextView.getVisibility() == View.GONE) {
-            remainingSquaresTextView.setText(String.valueOf(remainingBlackSquares));
-            remainingSquaresTextView.setVisibility(View.VISIBLE);
-
-            // 다시 숨김
-            new Handler().postDelayed(() -> {
-                remainingSquaresTextView.setVisibility(View.GONE);
-            }, 500); // 1000ms = 1초 후 실행
-        }
-    }
-
 }
